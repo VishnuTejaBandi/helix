@@ -100,7 +100,7 @@ const SEPARATOR_HEIGHT: u16 = 1;
 impl Component for Hover {
     fn render(&mut self, area: Rect, surface: &mut Buffer, cx: &mut Context) {
         let margin = Margin::horizontal(1);
-        let area = area.inner(&margin);
+        let area = area.inner(margin);
 
         let (Some(header), Some(contents)) = (self.header.as_ref(), self.contents.as_ref()) else {
             log::info!("markdown not ready");
