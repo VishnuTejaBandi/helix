@@ -547,6 +547,7 @@ pub struct StatusLineConfig {
     pub mode: ModeConfig,
     pub diagnostics: Vec<Severity>,
     pub workspace_diagnostics: Vec<Severity>,
+    pub lang_icons: HashMap<String, String>,
 }
 
 impl Default for StatusLineConfig {
@@ -573,6 +574,7 @@ impl Default for StatusLineConfig {
             mode: ModeConfig::default(),
             diagnostics: vec![Severity::Warning, Severity::Error],
             workspace_diagnostics: vec![Severity::Warning, Severity::Error],
+            lang_icons: HashMap::default(),
         }
     }
 }

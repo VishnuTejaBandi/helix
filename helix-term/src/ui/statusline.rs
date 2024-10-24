@@ -245,14 +245,14 @@ where
             Severity::Warning if warnings > 0 => {
                 write(
                     context,
-                    Span::styled("●", context.editor.theme.get("warning")),
+                    Span::styled("", context.editor.theme.get("warning")),
                 );
                 write(context, format!(" {} ", warnings).into());
             }
             Severity::Error if errors > 0 => {
                 write(
                     context,
-                    Span::styled("●", context.editor.theme.get("error")),
+                    Span::styled("", context.editor.theme.get("error")),
                 );
                 write(context, format!(" {} ", errors).into());
             }
@@ -373,7 +373,18 @@ where
     let position = get_position(context);
     write(
         context,
-        format!(" {}:{} ", position.row + 1, position.col + 1).into(),
+        Span::styled(
+            format!(" {}:{} ", position.row + 1, position.col + 1),
+            if context.editor.config().color_modes && context.focused {
+                match context.editor.mode() {
+                    Mode::Insert => context.editor.theme.get("ui.statusline.insert"),
+                    Mode::Select => context.editor.theme.get("ui.statusline.select"),
+                    Mode::Normal => context.editor.theme.get("ui.statusline.normal"),
+                }
+            } else {
+                Style::default()
+            },
+        ),
     );
 }
 
@@ -439,8 +450,22 @@ where
     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
 {
     let file_type = context.doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
+    let file_icon = context
+        .editor
+        .config()
+        .statusline
+        .lang_icons
+        .get(file_type)
+        .cloned();
 
-    write(context, format!(" {} ", file_type).into());
+    write(
+        context,
+        if file_icon.is_some() {
+            format!(" {} {} ", file_icon.unwrap(), file_type).into()
+        } else {
+            format!(" {} ", file_type).into()
+        },
+    );
 }
 
 fn render_file_name<'a, F>(context: &mut RenderContext<'a>, write: F)
@@ -543,7 +568,19 @@ where
         .unwrap_or_default()
         .to_string();
 
-    write(context, head.into());
+    if head.len() > 0 {
+        write(
+            context,
+            Span::styled(
+                format!("  {} ", head),
+                if context.focused {
+                    context.editor.theme.get("ui.statusline.version_control")
+                } else {
+                    Style::default()
+                },
+            ),
+        );
+    }
 }
 
 fn render_register<'a, F>(context: &mut RenderContext<'a>, write: F)
@@ -551,6 +588,16 @@ where
     F: Fn(&mut RenderContext<'a>, Span<'a>) + Copy,
 {
     if let Some(reg) = context.editor.selected_register {
-        write(context, format!(" reg={} ", reg).into())
+        write(
+            context,
+            Span::styled(
+                format!(" reg={} ", reg),
+                if context.focused {
+                    context.editor.theme.get("ui.statusline.register")
+                } else {
+                    Style::default()
+                },
+            ),
+        )
     }
 }

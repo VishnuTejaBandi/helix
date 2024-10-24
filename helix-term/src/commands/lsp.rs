@@ -1,4 +1,8 @@
-use futures_util::{stream::FuturesOrdered, FutureExt};
+use futures_util::{
+    future::{join_all, ready, Ready},
+    stream::FuturesOrdered,
+    FutureExt,
+};
 use helix_lsp::{
     block_on,
     lsp::{
@@ -32,7 +36,13 @@ use crate::{
     ui::{self, overlay::overlaid, FileLocation, Picker, Popup, PromptEvent},
 };
 
-use std::{cmp::Ordering, collections::HashSet, fmt::Display, future::Future, path::Path};
+use std::{
+    cmp::Ordering,
+    collections::HashSet,
+    fmt::Display,
+    future::{Future, IntoFuture},
+    path::Path,
+};
 
 /// Gets the first language server that is attached to a document which supports a specific feature.
 /// If there is no configured language server that supports the feature, this displays a status message.
@@ -1268,16 +1278,24 @@ pub fn compute_inlay_hints_for_all_views(editor: &mut Editor, jobs: &mut crate::
     }
 }
 
+struct LspInlayHintResult<T, E>(OffsetEncoding, Result<T, E>);
+
+impl<T, E> IntoFuture for LspInlayHintResult<T, E> {
+    type Output = (OffsetEncoding, Result<T, E>);
+
+    type IntoFuture = Ready<Self::Output>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        ready((self.0, self.1))
+    }
+}
+
 fn compute_inlay_hints_for_view(
     view: &View,
     doc: &Document,
 ) -> Option<std::pin::Pin<Box<impl Future<Output = Result<crate::job::Callback, anyhow::Error>>>>> {
     let view_id = view.id;
     let doc_id = view.doc;
-
-    let language_server = doc
-        .language_servers_with_feature(LanguageServerFeature::InlayHints)
-        .next()?;
 
     let doc_text = doc.text();
     let len_lines = doc_text.len_lines();
@@ -1311,18 +1329,37 @@ fn compute_inlay_hints_for_view(
     let first_char_in_range = doc_slice.line_to_char(first_line);
     let last_char_in_range = doc_slice.line_to_char(last_line);
 
-    let range = helix_lsp::util::range_to_lsp_range(
-        doc_text,
-        helix_core::Range::new(first_char_in_range, last_char_in_range),
-        language_server.offset_encoding(),
-    );
+    let language_servers = doc.language_servers_with_feature(LanguageServerFeature::InlayHints);
 
-    let offset_encoding = language_server.offset_encoding();
+    let mut lang_server_inlay_hint_reqs = vec![];
+    for client in language_servers {
+        lang_server_inlay_hint_reqs.push({
+            let range = helix_lsp::util::range_to_lsp_range(
+                doc_text,
+                helix_core::Range::new(first_char_in_range, last_char_in_range),
+                client.offset_encoding(),
+            );
+            (
+                client.offset_encoding(),
+                client.text_document_range_inlay_hints(doc.identifier(), range, None),
+            )
+        })
+    }
+    lang_server_inlay_hint_reqs.retain(|(_, r)| r.is_some());
 
-    let callback = super::make_job_callback(
-        language_server.text_document_range_inlay_hints(doc.identifier(), range, None)?,
-        move |editor, _compositor, response: Option<Vec<lsp::InlayHint>>| {
+    let callback = Box::pin(async move {
+        let mut lsp_inlay_hint_rspns =
+            join_all(lang_server_inlay_hint_reqs.into_iter().map(|(e, request)| {
+                request
+                    .unwrap()
+                    .then(move |response| LspInlayHintResult(e, response).into_future())
+            }))
+            .await;
+        lsp_inlay_hint_rspns.retain(|(_, r)| r.is_ok());
+
+        let call = Callback::EditorCompositor(Box::new(move |editor: &mut Editor, _compositor| {
             // The config was modified or the window was closed while the request was in flight
+            //
             if !editor.config().lsp.display_inlay_hints || editor.tree.try_get(view_id).is_none() {
                 return;
             }
@@ -1333,35 +1370,46 @@ fn compute_inlay_hints_for_view(
                 None => return,
             };
 
-            // If we have neither hints nor an LSP, empty the inlay hints since they're now oudated
-            let mut hints = match response {
-                Some(hints) if !hints.is_empty() => hints,
-                _ => {
-                    doc.set_inlay_hints(
-                        view_id,
-                        DocumentInlayHints::empty_with_id(new_doc_inlay_hints_id),
-                    );
-                    doc.inlay_hints_oudated = false;
-                    return;
-                }
-            };
+            let lsp_inlay_hint_results = lsp_inlay_hint_rspns
+                .into_iter()
+                .map(move |(encoding, r)| (encoding, r))
+                .filter(|(_, r)| r.is_ok())
+                .map(|(encoding, r)| (encoding, r.unwrap()));
 
-            // Most language servers will already send them sorted but ensure this is the case to
-            // avoid errors on our end.
-            hints.sort_by_key(|inlay_hint| inlay_hint.position);
+            let mut all_hints: Vec<(OffsetEncoding, lsp::InlayHint)> = Vec::new();
+            lsp_inlay_hint_results.for_each(|(offset_encoding, hints)| {
+                if hints.is_some() {
+                    all_hints.append(
+                        &mut hints
+                            .unwrap()
+                            .into_iter()
+                            .map(|h| (offset_encoding, h))
+                            .collect(),
+                    );
+                }
+            });
+
+            if all_hints.is_empty() {
+                doc.set_inlay_hints(
+                    view_id,
+                    DocumentInlayHints::empty_with_id(new_doc_inlay_hints_id),
+                );
+                doc.inlay_hints_oudated = false;
+                return;
+            }
+
+            all_hints.sort_by_key(|(_, h)| h.position);
 
             let mut padding_before_inlay_hints = Vec::new();
             let mut type_inlay_hints = Vec::new();
             let mut parameter_inlay_hints = Vec::new();
             let mut other_inlay_hints = Vec::new();
             let mut padding_after_inlay_hints = Vec::new();
-
             let doc_text = doc.text();
 
-            for hint in hints {
+            for (encoding, hint) in all_hints {
                 let char_idx =
-                    match helix_lsp::util::lsp_pos_to_pos(doc_text, hint.position, offset_encoding)
-                    {
+                    match helix_lsp::util::lsp_pos_to_pos(doc_text, hint.position, encoding) {
                         Some(pos) => pos,
                         // Skip inlay hints that have no "real" position
                         None => continue,
@@ -1407,8 +1455,9 @@ fn compute_inlay_hints_for_view(
                 },
             );
             doc.inlay_hints_oudated = false;
-        },
-    );
+        }));
+        Ok(call)
+    });
 
     Some(callback)
 }

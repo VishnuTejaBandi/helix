@@ -37,6 +37,9 @@ pub enum Variable {
     Language,
     // Primary selection
     Selection,
+    BaseName,
+    BufferPath,
+    BufferDirectory,
 }
 
 impl Variable {
@@ -47,6 +50,9 @@ impl Variable {
         Self::LineEnding,
         Self::Language,
         Self::Selection,
+        Self::BaseName,
+        Self::BufferPath,
+        Self::BufferDirectory,
     ];
 
     pub const fn as_str(&self) -> &'static str {
@@ -57,6 +63,9 @@ impl Variable {
             Self::LineEnding => "line_ending",
             Self::Language => "language",
             Self::Selection => "selection",
+            Variable::BaseName => "base_name",
+            Variable::BufferPath => "buffer_path",
+            Variable::BufferDirectory => "buffer_directory",
         }
     }
 
@@ -68,6 +77,9 @@ impl Variable {
             "line_ending" => Some(Self::LineEnding),
             "language" => Some(Self::Language),
             "selection" => Some(Self::Selection),
+            "base_name" => Some(Self::BaseName),
+            "buffer_path" => Some(Self::BufferPath),
+            "buffer_directory" => Some(Self::BufferDirectory),
             _ => None,
         }
     }
@@ -231,6 +243,25 @@ fn expand_variable(editor: &Editor, variable: Variable) -> Result<Cow<'static, s
         }),
         Variable::Selection => Ok(Cow::Owned(
             doc.selection(view.id).primary().fragment(text).to_string(),
+        )),
+        Variable::BaseName => Ok(Cow::Owned(
+            doc.path()
+                .and_then(|it| it.file_name().and_then(|it| it.to_str()))
+                .unwrap_or(crate::document::SCRATCH_BUFFER_NAME)
+                .to_owned(),
+        )),
+        Variable::BufferPath => Ok(Cow::Owned(
+            doc.path()
+                .and_then(|it| it.to_str())
+                .unwrap_or(crate::document::SCRATCH_BUFFER_NAME)
+                .to_owned(),
+        )),
+        Variable::BufferDirectory => Ok(Cow::Owned(
+            doc.path()
+                .and_then(|p| p.parent())
+                .and_then(std::path::Path::to_str)
+                .unwrap_or(crate::document::SCRATCH_BUFFER_NAME)
+                .to_owned(),
         )),
     }
 }
