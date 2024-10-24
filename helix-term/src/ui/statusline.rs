@@ -243,7 +243,7 @@ where
     if warnings > 0 {
         write(
             context,
-            "●".to_string(),
+            " ".to_string(),
             Some(context.editor.theme.get("warning")),
         );
         write(context, format!(" {} ", warnings), None);
@@ -252,7 +252,7 @@ where
     if errors > 0 {
         write(
             context,
-            "●".to_string(),
+            " ".to_string(),
             Some(context.editor.theme.get("error")),
         );
         write(context, format!(" {} ", errors), None);
@@ -344,7 +344,15 @@ where
     write(
         context,
         format!(" {}:{} ", position.row + 1, position.col + 1),
-        None,
+        if context.editor.config().color_modes && context.focused {
+            match context.editor.mode() {
+                Mode::Insert => Some(context.editor.theme.get("ui.statusline.insert")),
+                Mode::Select => Some(context.editor.theme.get("ui.statusline.select")),
+                Mode::Normal => Some(context.editor.theme.get("ui.statusline.normal")),
+            }
+        } else {
+            None
+        },
     );
 }
 
@@ -411,8 +419,23 @@ where
     F: Fn(&mut RenderContext, String, Option<Style>) + Copy,
 {
     let file_type = context.doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
+    let file_icon = context
+        .editor
+        .config()
+        .statusline
+        .lang_icons
+        .get(file_type)
+        .cloned();
 
-    write(context, format!(" {} ", file_type), None);
+    write(
+        context,
+        if file_icon.is_some() {
+            format!(" {} {} ", file_icon.unwrap(), file_type)
+        } else {
+            format!(" {} ", file_type)
+        },
+        None,
+    );
 }
 
 fn render_file_name<F>(context: &mut RenderContext, write: F)
@@ -520,7 +543,17 @@ where
         .unwrap_or_default()
         .to_string();
 
-    write(context, head, None);
+    if head.len() > 0 {
+        write(
+            context,
+            format!("  {} ", head),
+            if context.focused {
+                Some(context.editor.theme.get("ui.statusline.version_control"))
+            } else {
+                None
+            },
+        );
+    }
 }
 
 fn render_register<F>(context: &mut RenderContext, write: F)
@@ -528,6 +561,14 @@ where
     F: Fn(&mut RenderContext, String, Option<Style>) + Copy,
 {
     if let Some(reg) = context.editor.selected_register {
-        write(context, format!(" reg={} ", reg), None)
+        write(
+            context,
+            format!(" reg={} ", reg),
+            if context.focused {
+                Some(context.editor.theme.get("ui.statusline.register"))
+            } else {
+                None
+            },
+        )
     }
 }
