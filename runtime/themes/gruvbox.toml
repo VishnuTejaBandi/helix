@@ -69,7 +69,8 @@
 "type" = { fg = "yellow1" }
 "type.enum.variant" = { modifiers = ["italic"] }
 
-"ui.background" = { bg = "bg0" }
+# "ui.background" = { bg = "bg0" }
+"ui.background" = {}
 "ui.bufferline" = { fg = "fg1", bg = "bg1" }
 "ui.bufferline.active" = { fg = "bg0", bg = "yellow0" }
 "ui.bufferline.background" = { bg = "bg2" }
@@ -95,15 +96,22 @@
 "ui.menu.selected" = { fg = "bg2", bg = "blue1", modifiers = ["bold"] }
 "ui.popup" = { bg = "bg1" }
 "ui.picker.header.column" = { underline.style = "line" }
-"ui.picker.header.column.active" = { modifiers = ["bold"], underline.style = "line" }
+"ui.picker.header.column.active" = { modifiers = [
+  "bold",
+], underline.style = "line" }
 "ui.selection" = { bg = "bg2" }
 "ui.selection.primary" = { bg = "bg3" }
 
-"ui.statusline" = { fg = "fg1", bg = "bg2" }
+"ui.statusline" = { fg = "fg1", bg = "bg1" }
 "ui.statusline.inactive" = { fg = "fg4", bg = "bg2" }
 "ui.statusline.insert" = { fg = "bg1", bg = "blue1", modifiers = ["bold"] }
 "ui.statusline.normal" = { fg = "bg1", bg = "fg3", modifiers = ["bold"] }
 "ui.statusline.select" = { fg = "bg1", bg = "orange1", modifiers = ["bold"] }
+"ui.statusline.version_control" = { fg = "fg2", bg = "bg2", modifiers = [
+  "bold",
+] }
+"ui.statusline.register" = { fg = "bg1", bg = "aqua1" }
+
 
 "ui.text" = { fg = "fg1" }
 "ui.text.focus" = { fg = "green1" }
@@ -113,6 +121,7 @@
 "ui.virtual.ruler" = { bg = "bg1" }
 "ui.virtual.whitespace" = "bg2"
 "ui.virtual.wrap" = { fg = "bg2" }
+"ui.virtual.inline-blame" = { fg = "gray" }
 "ui.window" = { bg = "bg1" }
 
 "variable" = { fg = "fg1" }
