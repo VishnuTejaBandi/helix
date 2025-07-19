@@ -653,6 +653,7 @@ impl Clone for LanguageConfiguration {
             workspace_lsp_roots: self.workspace_lsp_roots.clone(),
             persistent_diagnostic_sources: self.persistent_diagnostic_sources.clone(),
             path_completion: self.path_completion,
+            word_completion: self.word_completion,
         }
     }
 }

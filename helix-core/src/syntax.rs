@@ -47,6 +47,7 @@ pub struct LanguageData {
 impl Clone for LanguageData {
     fn clone(&self) -> Self {
         Self {
+            tag_query: OnceCell::new(),
             config: self.config.clone(),
             syntax: OnceCell::new(),
             indent_query: OnceCell::new(),
