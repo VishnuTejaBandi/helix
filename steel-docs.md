@@ -1033,6 +1033,14 @@ Check whether the given event is the key: home
 (key-event-home? event)
 ```
 event: Event?
+### **key-event-end?**
+
+Check whether the given event is the key: end
+
+```scheme
+(key-event-end? event)
+```
+event: Event?
 ### **key-event-page-up?**
 
 Check whether the given event is the key: page-up
