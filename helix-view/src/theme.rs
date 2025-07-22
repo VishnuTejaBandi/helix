@@ -462,7 +462,7 @@ impl Theme {
         self.rainbow_length
     }
 
-    fn from_toml(value: Value) -> (Self, Vec<String>) {
+    pub fn from_toml(value: Value) -> (Self, Vec<String>) {
         if let Value::Table(table) = value {
             Theme::from_keys(table)
         } else {

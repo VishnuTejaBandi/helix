@@ -656,6 +656,7 @@ impl Clone for LanguageConfiguration {
             persistent_diagnostic_sources: self.persistent_diagnostic_sources.clone(),
             path_completion: self.path_completion,
             word_completion: self.word_completion,
+            rainbow_brackets: self.rainbow_brackets.clone(),
         }
     }
 }

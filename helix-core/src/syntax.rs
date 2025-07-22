@@ -54,6 +54,7 @@ impl Clone for LanguageData {
             syntax: OnceCell::new(),
             indent_query: OnceCell::new(),
             textobject_query: OnceCell::new(),
+            rainbow_query: OnceCell::new(),
         }
     }
 }
