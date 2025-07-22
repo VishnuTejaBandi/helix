@@ -69,8 +69,9 @@
 "type" = { fg = "yellow1" }
 "type.enum.variant" = { modifiers = ["italic"] }
 
-# "ui.background" = { bg = "bg0" }
-"ui.background" = {}
+"ui.background" = { bg = "bg0" }
+# "ui.background" = {}
+# "ui.background" = { bg = "background" }
 "ui.bufferline" = { fg = "fg1", bg = "bg1" }
 "ui.bufferline.active" = { fg = "bg0", bg = "yellow0" }
 "ui.bufferline.background" = { bg = "bg2" }
@@ -131,7 +132,7 @@
 
 
 [palette]
-bg0 = "#282828"   # main background
+bg0 = "#232323"   # main background
 bg0_s = "#32302f"
 bg1 = "#3c3836"
 bg2 = "#504945"
